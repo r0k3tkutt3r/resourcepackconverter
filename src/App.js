@@ -12,6 +12,10 @@ function App() {
   const [selectedGameVersion, setSelectedGameVersion] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [conversionStep, setConversionStep] = useState('');
+  // Bulk mode state – allows converting to a range of versions in one go
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkStartVersion, setBulkStartVersion] = useState('');
+  const [bulkEndVersion, setBulkEndVersion] = useState('');
 
   // Dynamically fetched version→pack_format map
   const [gameVersionToPackFormat, setGameVersionToPackFormat] = useState({});
@@ -144,7 +148,11 @@ function App() {
   };
 
   const canConvert = () => {
-    return isValidResourcePack && !isScanning && !isConverting && packVersion && isValidPackVersion(packVersion);
+    if (!isValidResourcePack || isScanning || isConverting) return false;
+    if (isBulkMode) {
+      return bulkStartVersion && bulkEndVersion;
+    }
+    return packVersion && isValidPackVersion(packVersion);
   };
 
   const downloadFile = (blob, filename) => {
@@ -243,80 +251,167 @@ function App() {
     }
   };
 
+  // Handlers for bulk mode version range
+  const handleBulkStartChange = (event) => {
+    setBulkStartVersion(event.target.value);
+  };
+
+  const handleBulkEndChange = (event) => {
+    setBulkEndVersion(event.target.value);
+  };
+
+  // When toggling bulk mode, reset conflicting inputs
+  useEffect(() => {
+    if (isBulkMode) {
+      // Clear single-target selections when entering bulk mode
+      setSelectedGameVersion('');
+      setPackVersion('');
+    } else {
+      // Clear bulk selections when exiting bulk mode
+      setBulkStartVersion('');
+      setBulkEndVersion('');
+    }
+  }, [isBulkMode]);
+
   const handleConvert = async () => {
     if (!canConvert()) return;
 
     setIsConverting(true);
-    
+
     try {
-      setConversionStep('Loading resource pack...');
       const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-      const zipContents = await zip.loadAsync(selectedFile);
-      
-      setConversionStep('Reading pack.mcmeta file...');
-      const packMcmetaFile = zipContents.file('pack.mcmeta');
-      if (!packMcmetaFile) {
-        throw new Error('pack.mcmeta file not found');
-      }
-      
-      const packMcmetaContent = await packMcmetaFile.async('string');
-      
-      setConversionStep('Updating pack format version...');
-      // Parse the JSON and update the pack format
-      const packData = JSON.parse(packMcmetaContent);
-      if (!packData.pack || typeof packData.pack.pack_format === 'undefined') {
-        throw new Error('Invalid pack.mcmeta format');
-      }
-      
-      // Update the pack format version
-      packData.pack.pack_format = parseInt(packVersion);
-      
-      // Convert back to JSON with proper formatting
-      const updatedMcmetaContent = JSON.stringify(packData, null, 2);
-      
-      setConversionStep('Creating new resource pack...');
-      // Create a new zip with the updated pack.mcmeta
-      const newZip = new JSZip();
-      
-      // Add all files from the original zip except pack.mcmeta
-      const filePromises = [];
-      zipContents.forEach((relativePath, file) => {
-        if (relativePath !== 'pack.mcmeta' && !file.dir) {
-          filePromises.push(
-            file.async('blob').then(blob => {
-              newZip.file(relativePath, blob);
-            })
-          );
-        } else if (file.dir) {
-          newZip.folder(relativePath);
+
+      if (isBulkMode) {
+        setConversionStep('Loading resource pack...');
+
+        // Load original pack once
+        const baseZip = new JSZip();
+        const originalContents = await baseZip.loadAsync(selectedFile);
+
+        const mcmetaFile = originalContents.file('pack.mcmeta');
+        if (!mcmetaFile) throw new Error('pack.mcmeta file not found');
+        const mcmetaContent = await mcmetaFile.async('string');
+        const packDataOriginal = JSON.parse(mcmetaContent);
+
+        // Determine selected range (inclusive)
+        const startIdx = gameVersions.indexOf(bulkStartVersion);
+        const endIdx = gameVersions.indexOf(bulkEndVersion);
+        if (startIdx === -1 || endIdx === -1) throw new Error('Invalid bulk version range');
+        const [from, to] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+        const range = gameVersions.slice(from, to + 1);
+
+        const bulkZip = new JSZip();
+        const originalName = selectedFile.name.replace(/\.zip$/, '');
+
+        for (const versionLabel of range) {
+          const packFmt = gameVersionToPackFormat[versionLabel];
+          if (typeof packFmt === 'undefined') continue;
+
+          setConversionStep(`Converting → ${versionLabel}...`);
+
+          // Deep copy original packData
+          const updatedPackData = {
+            ...packDataOriginal,
+            pack: {
+              ...packDataOriginal.pack,
+              pack_format: packFmt,
+            },
+          };
+
+          const updatedMcmeta = JSON.stringify(updatedPackData, null, 2);
+
+          const newZip = new JSZip();
+
+          // Copy files from original pack (excluding pack.mcmeta)
+          const copyPromises = [];
+          originalContents.forEach((relPath, file) => {
+            if (relPath !== 'pack.mcmeta' && !file.dir) {
+              copyPromises.push(
+                file.async('blob').then((blob) => {
+                  newZip.file(relPath, blob);
+                })
+              );
+            } else if (file.dir) {
+              newZip.folder(relPath);
+            }
+          });
+          await Promise.all(copyPromises);
+
+          // Add updated pack.mcmeta
+          newZip.file('pack.mcmeta', updatedMcmeta);
+
+          const newZipBlob = await newZip.generateAsync({ type: 'blob' });
+          const childName = `${originalName}_MC${versionLabel}.zip`;
+          bulkZip.file(childName, newZipBlob);
         }
-      });
-      
-      await Promise.all(filePromises);
-      
-      // Add the updated pack.mcmeta
-      newZip.file('pack.mcmeta', updatedMcmetaContent);
-      
-      setConversionStep('Generating download...');
-      // Generate the new zip file
-      const newZipBlob = await newZip.generateAsync({ type: 'blob' });
-      
-      // Create download filename
-      const originalName = selectedFile.name.replace(/\.zip$/, '');
-      const versionSuffix = selectedGameVersion 
-        ? `_MC${selectedGameVersion}` 
-        : `_v${packVersion}`;
-      const newFileName = `${originalName}${versionSuffix}.zip`;
-      
-      setConversionStep('Download ready!');
-      downloadFile(newZipBlob, newFileName);
-      
-      setTimeout(() => {
-        setConversionStep('');
-        setIsConverting(false);
-      }, 2000);
-      
+
+        setConversionStep('Packaging bulk download...');
+        const bulkBlob = await bulkZip.generateAsync({ type: 'blob' });
+        const bulkFileName = `${originalName}_bulk.zip`;
+
+        setConversionStep('Download ready!');
+        downloadFile(bulkBlob, bulkFileName);
+
+        setTimeout(() => {
+          setConversionStep('');
+          setIsConverting(false);
+        }, 2000);
+      } else {
+        /* ---------- Single-version convert (existing logic) ---------- */
+        setConversionStep('Loading resource pack...');
+        const zip = new JSZip();
+        const zipContents = await zip.loadAsync(selectedFile);
+
+        setConversionStep('Reading pack.mcmeta file...');
+        const packMcmetaFile = zipContents.file('pack.mcmeta');
+        if (!packMcmetaFile) {
+          throw new Error('pack.mcmeta file not found');
+        }
+
+        const packMcmetaContent = await packMcmetaFile.async('string');
+
+        setConversionStep('Updating pack format version...');
+        const packData = JSON.parse(packMcmetaContent);
+        if (!packData.pack || typeof packData.pack.pack_format === 'undefined') {
+          throw new Error('Invalid pack.mcmeta format');
+        }
+
+        packData.pack.pack_format = parseInt(packVersion);
+        const updatedMcmetaContent = JSON.stringify(packData, null, 2);
+
+        setConversionStep('Creating new resource pack...');
+        const newZip = new JSZip();
+
+        const filePromises = [];
+        zipContents.forEach((relativePath, file) => {
+          if (relativePath !== 'pack.mcmeta' && !file.dir) {
+            filePromises.push(
+              file.async('blob').then((blob) => {
+                newZip.file(relativePath, blob);
+              })
+            );
+          } else if (file.dir) {
+            newZip.folder(relativePath);
+          }
+        });
+        await Promise.all(filePromises);
+        newZip.file('pack.mcmeta', updatedMcmetaContent);
+
+        setConversionStep('Generating download...');
+        const newZipBlob = await newZip.generateAsync({ type: 'blob' });
+
+        const originalName = selectedFile.name.replace(/\.zip$/, '');
+        const versionSuffix = selectedGameVersion ? `_MC${selectedGameVersion}` : `_v${packVersion}`;
+        const newFileName = `${originalName}${versionSuffix}.zip`;
+
+        setConversionStep('Download ready!');
+        downloadFile(newZipBlob, newFileName);
+
+        setTimeout(() => {
+          setConversionStep('');
+          setIsConverting(false);
+        }, 2000);
+      }
     } catch (error) {
       console.error('Conversion error:', error);
       setConversionStep('Error during conversion');
@@ -396,6 +491,20 @@ function App() {
               
               {isValidResourcePack && (
                 <div className="version-input-section">
+                  {/* Bulk Mode Switch */}
+                  <div className="version-selection-group bulk-mode-toggle">
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={isBulkMode}
+                        onChange={(e) => setIsBulkMode(e.target.checked)}
+                      />
+                      <span className="slider" />
+                    </label>
+                    <span className="switch-label">Bulk Mode</span>
+                  </div>
+
+                  {/* Snapshot toggle remains */}
                   <div className="version-selection-group">
                     <label className="checkbox-label">
                       <input
@@ -407,63 +516,119 @@ function App() {
                     </label>
                   </div>
 
-                  <div className="version-selection-group">
-                    <label htmlFor="game-version" className="version-label">
-                      Target Minecraft Version:
-                    </label>
-                    <select
-                      id="game-version"
-                      className="version-dropdown"
-                      value={selectedGameVersion}
-                      onChange={handleGameVersionChange}
-                      disabled={isLoadingVersions}
-                    >
-                      <option value="">
-                        {isLoadingVersions ? 'Loading versions...' : 'Select a Minecraft version'}
-                      </option>
-                      {gameVersions.map(version => (
-                        <option key={version} value={version}>
-                          {version} (Pack Format {gameVersionToPackFormat[version]})
-                        </option>
-                      ))}
-                    </select>
-                    {isLoadingVersions && (
-                      <p className="loading-text">🔄 Fetching latest pack format data...</p>
-                    )}
-                  </div>
+                  {/* Single-version Inputs */}
+                  {!isBulkMode && (
+                    <>
+                      <div className="version-selection-group">
+                        <label htmlFor="game-version" className="version-label">
+                          Target Minecraft Version:
+                        </label>
+                        <select
+                          id="game-version"
+                          className="version-dropdown"
+                          value={selectedGameVersion}
+                          onChange={handleGameVersionChange}
+                          disabled={isLoadingVersions}
+                        >
+                          <option value="">
+                            {isLoadingVersions ? 'Loading versions...' : 'Select a Minecraft version'}
+                          </option>
+                          {gameVersions.map((version) => (
+                            <option key={version} value={version}>
+                              {version} (Pack Format {gameVersionToPackFormat[version]})
+                            </option>
+                          ))}
+                        </select>
+                        {isLoadingVersions && (
+                          <p className="loading-text">🔄 Fetching latest pack format data...</p>
+                        )}
+                      </div>
 
-                  <div className="version-or-divider">
-                    <span>OR</span>
-                  </div>
+                      <div className="version-or-divider">
+                        <span>OR</span>
+                      </div>
 
-                  <div className="version-selection-group">
-                    <label htmlFor="pack-version" className="version-label">
-                      Manual Pack Format Version:
-                    </label>
-                    <input
-                      type="number"
-                      id="pack-version"
-                      className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
-                      value={packVersion}
-                      onChange={handlePackVersionChange}
-                      placeholder={isLoadingVersions ? 'Loading…' : `Enter version (${MIN_PACK_VERSION}-${latestPackVersion})`}
-                      min={MIN_PACK_VERSION}
-                      max={latestPackVersion}
-                      disabled={selectedGameVersion !== '' || isLoadingVersions}
-                    />
-                    {packVersion && !isValidPackVersion(packVersion) && (
-                      <p className="version-error">
-                        Please enter a valid pack format version between {MIN_PACK_VERSION} and {latestPackVersion}
-                      </p>
-                    )}
-                  </div>
+                      <div className="version-selection-group">
+                        <label htmlFor="pack-version" className="version-label">
+                          Manual Pack Format Version:
+                        </label>
+                        <input
+                          type="number"
+                          id="pack-version"
+                          className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
+                          value={packVersion}
+                          onChange={handlePackVersionChange}
+                          placeholder={isLoadingVersions ? 'Loading…' : `Enter version (${MIN_PACK_VERSION}-${latestPackVersion})`}
+                          min={MIN_PACK_VERSION}
+                          max={latestPackVersion}
+                          disabled={selectedGameVersion !== '' || isLoadingVersions}
+                        />
+                        {packVersion && !isValidPackVersion(packVersion) && (
+                          <p className="version-error">
+                            Please enter a valid pack format version between {MIN_PACK_VERSION} and {latestPackVersion}
+                          </p>
+                        )}
+                      </div>
 
-                  {selectedGameVersion && (
-                    <div className="selected-version-info">
-                      <p>
-                        <strong>Selected:</strong> Minecraft {selectedGameVersion} → Pack Format {packVersion}
-                      </p>
-                    </div>
+                      {selectedGameVersion && (
+                        <div className="selected-version-info">
+                          <p>
+                            <strong>Selected:</strong> Minecraft {selectedGameVersion} → Pack Format {packVersion}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Bulk-mode Range Inputs */}
+                  {isBulkMode && (
+                    <>
+                      <div className="version-selection-group">
+                        <label htmlFor="bulk-start-version" className="version-label">Start Version:</label>
+                        <select
+                          id="bulk-start-version"
+                          className="version-dropdown"
+                          value={bulkStartVersion}
+                          onChange={handleBulkStartChange}
+                          disabled={isLoadingVersions}
+                        >
+                          <option value="">
+                            {isLoadingVersions ? 'Loading versions...' : 'Select start version'}
+                          </option>
+                          {gameVersions.map((version) => (
+                            <option key={version} value={version}>
+                              {version} (Pack Format {gameVersionToPackFormat[version]})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="version-selection-group">
+                        <label htmlFor="bulk-end-version" className="version-label">End Version:</label>
+                        <select
+                          id="bulk-end-version"
+                          className="version-dropdown"
+                          value={bulkEndVersion}
+                          onChange={handleBulkEndChange}
+                          disabled={isLoadingVersions}
+                        >
+                          <option value="">
+                            {isLoadingVersions ? 'Loading versions...' : 'Select end version'}
+                          </option>
+                          {gameVersions.map((version) => (
+                            <option key={version} value={version}>
+                              {version} (Pack Format {gameVersionToPackFormat[version]})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {bulkStartVersion && bulkEndVersion && (
+                        <div className="selected-version-info">
+                          <p><strong>Range:</strong> {bulkStartVersion} → {bulkEndVersion}</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
