@@ -36,3 +36,18 @@
     transform: rotate(360deg);
   }
 }
+
+.App-title {
+  font-size: 3rem;
+  margin: 0;
+}
+
+.App-main {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+/* Remove default CRA link color rule */
