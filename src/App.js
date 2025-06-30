@@ -7,6 +7,8 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isValidResourcePack, setIsValidResourcePack] = useState(false);
   const [packVersion, setPackVersion] = useState('');
+  const [originalPackVersion, setOriginalPackVersion] = useState('');
+  const [originalGameLabel, setOriginalGameLabel] = useState('');
   const [selectedGameVersion, setSelectedGameVersion] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [conversionStep, setConversionStep] = useState('');
@@ -122,6 +124,18 @@ function App() {
     }
   }, [gameVersions, isLoadingVersions]);
 
+  // When we have original pack version and mapping, derive a representative game version label
+  useEffect(() => {
+    if (originalPackVersion && Object.keys(gameVersionToPackFormat).length) {
+      const label = Object.keys(gameVersionToPackFormat).find(
+        (k) => gameVersionToPackFormat[k] === parseInt(originalPackVersion)
+      );
+      setOriginalGameLabel(label || '');
+    } else {
+      setOriginalGameLabel('');
+    }
+  }, [originalPackVersion, gameVersionToPackFormat]);
+
   const MIN_PACK_VERSION = 1;
 
   const isValidPackVersion = (version) => {
@@ -154,8 +168,26 @@ function App() {
       const zipContents = await zip.loadAsync(file);
       
       // Check if pack.mcmeta exists in the zip
-      const hasPackMcmeta = zipContents.file('pack.mcmeta') !== null;
+      const mcmetaFile = zipContents.file('pack.mcmeta');
+      const hasPackMcmeta = mcmetaFile !== null;
       setIsValidResourcePack(hasPackMcmeta);
+
+      if (hasPackMcmeta) {
+        try {
+          const mcmetaStr = await mcmetaFile.async('string');
+          const mcmetaJson = JSON.parse(mcmetaStr);
+          const fmt = mcmetaJson?.pack?.pack_format;
+          if (typeof fmt !== 'undefined') {
+            setOriginalPackVersion(fmt.toString());
+          } else {
+            setOriginalPackVersion('');
+          }
+        } catch {
+          setOriginalPackVersion('');
+        }
+      } else {
+        setOriginalPackVersion('');
+      }
     } catch (error) {
       console.error('Error scanning zip file:', error);
       setIsValidResourcePack(false);
@@ -348,6 +380,7 @@ function App() {
               <p><strong>Name:</strong> {selectedFile.name}</p>
               <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
               <p><strong>Type:</strong> {selectedFile.type || 'Unknown'}</p>
+              <p><strong>Pack:</strong> {originalPackVersion ? `format ${originalPackVersion}, game version ${originalGameLabel || 'Unknown'}` : 'Unknown'}</p>
               
               {getValidationMessage() && (
                 <div className={`validation-message ${isScanning ? 'scanning' : isValidResourcePack ? 'valid' : 'invalid'}`}>
