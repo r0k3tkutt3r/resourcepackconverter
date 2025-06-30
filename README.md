@@ -55,26 +55,6 @@ Automatically detects and replaces Minecraft version numbers in filenames:
 - Falls back to standard naming if no version detected
 - Prevents conflicts with multiple version detection
 
-## 🖥️ Quick start (development)
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the dev server
-npm start
-# Open http://localhost:3000
-```
-
-The app is built with **Create React App** – all familiar CRA scripts work (`npm test`, `npm run build`, etc.).
-
-### Production build
-
-```bash
-npm run build
-```
-The optimized bundle will be placed in `build/` ready to deploy on any static host (GitHub Pages, Netlify, Cloudflare Pages, etc.).
-
 ## 🛠️ How it works under the hood
 
 ### Single Conversion
@@ -107,21 +87,6 @@ The app dynamically fetches the latest pack format data from the Minecraft Wiki,
 - **Development snapshots**: When "Include snapshots" is enabled
 - **Automatic updates**: Always has the newest version mappings
 
-## 🤝 Contributing
-
-Pull requests and issues are welcome! Feel free to contribute:
-- New features or improvements
-- Bug fixes
-- UI/UX enhancements
-- Documentation updates
-
-```bash
-# Development workflow
-npm install
-npm start
-npm test          # if you add tests
-npm run build     # verify production build
-```
 
 ## 📄 License
 
