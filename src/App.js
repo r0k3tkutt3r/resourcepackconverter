@@ -6,6 +6,20 @@ function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isValidResourcePack, setIsValidResourcePack] = useState(false);
+  const [packVersion, setPackVersion] = useState('');
+
+  // Current latest pack format version (as of 2025)
+  const LATEST_PACK_VERSION = 64;
+  const MIN_PACK_VERSION = 1;
+
+  const isValidPackVersion = (version) => {
+    const num = parseInt(version);
+    return !isNaN(num) && num >= MIN_PACK_VERSION && num <= LATEST_PACK_VERSION;
+  };
+
+  const canConvert = () => {
+    return isValidResourcePack && !isScanning && packVersion && isValidPackVersion(packVersion);
+  };
 
   const scanZipFile = async (file) => {
     setIsScanning(true);
@@ -55,9 +69,13 @@ function App() {
     setIsDragOver(false);
   };
 
+  const handlePackVersionChange = (event) => {
+    setPackVersion(event.target.value);
+  };
+
   const handleConvert = () => {
-    if (selectedFile && isValidResourcePack) {
-      alert(`Converting ${selectedFile.name}...`);
+    if (canConvert()) {
+      alert(`Converting ${selectedFile.name} to pack format version ${packVersion}...`);
       // TODO: Add conversion logic here
     }
   };
@@ -122,10 +140,33 @@ function App() {
                 </div>
               )}
               
+              {isValidResourcePack && (
+                <div className="version-input-section">
+                  <label htmlFor="pack-version" className="version-label">
+                    Target Pack Format Version:
+                  </label>
+                  <input
+                    type="number"
+                    id="pack-version"
+                    className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
+                    value={packVersion}
+                    onChange={handlePackVersionChange}
+                    placeholder={`Enter version (${MIN_PACK_VERSION}-${LATEST_PACK_VERSION})`}
+                    min={MIN_PACK_VERSION}
+                    max={LATEST_PACK_VERSION}
+                  />
+                  {packVersion && !isValidPackVersion(packVersion) && (
+                    <p className="version-error">
+                      Please enter a valid pack format version between {MIN_PACK_VERSION} and {LATEST_PACK_VERSION}
+                    </p>
+                  )}
+                </div>
+              )}
+              
               <button 
-                className={`convert-button ${isValidResourcePack && !isScanning ? 'enabled' : 'disabled'}`}
+                className={`convert-button ${canConvert() ? 'enabled' : 'disabled'}`}
                 onClick={handleConvert}
-                disabled={!isValidResourcePack || isScanning}
+                disabled={!canConvert()}
               >
                 {isScanning ? 'Scanning...' : 'Convert Resource Pack'}
               </button>
