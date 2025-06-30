@@ -7,11 +7,108 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isValidResourcePack, setIsValidResourcePack] = useState(false);
   const [packVersion, setPackVersion] = useState('');
+  const [selectedGameVersion, setSelectedGameVersion] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [conversionStep, setConversionStep] = useState('');
 
+  // Minecraft version to pack format mapping
+  const gameVersionToPackFormat = {
+    '1.21.6': 63,
+    '1.21.5': 46,
+    '1.21.4': 46,
+    '1.21.3': 42,
+    '1.21.2': 42,
+    '1.21.1': 34,
+    '1.21': 34,
+    '1.20.6': 32,
+    '1.20.5': 32,
+    '1.20.4': 22,
+    '1.20.3': 22,
+    '1.20.2': 18,
+    '1.20.1': 15,
+    '1.20': 15,
+    '1.19.4': 13,
+    '1.19.3': 12,
+    '1.19.2': 9,
+    '1.19.1': 9,
+    '1.19': 9,
+    '1.18.2': 8,
+    '1.18.1': 8,
+    '1.18': 8,
+    '1.17.1': 7,
+    '1.17': 7,
+    '1.16.5': 6,
+    '1.16.4': 6,
+    '1.16.3': 6,
+    '1.16.2': 6,
+    '1.16.1': 5,
+    '1.16': 5,
+    '1.15.2': 5,
+    '1.15.1': 5,
+    '1.15': 5,
+    '1.14.4': 4,
+    '1.14.3': 4,
+    '1.14.2': 4,
+    '1.14.1': 4,
+    '1.14': 4,
+    '1.13.2': 4,
+    '1.13.1': 4,
+    '1.13': 4,
+    '1.12.2': 3,
+    '1.12.1': 3,
+    '1.12': 3,
+    '1.11.2': 3,
+    '1.11.1': 3,
+    '1.11': 3,
+    '1.10.2': 2,
+    '1.10.1': 2,
+    '1.10': 2,
+    '1.9.4': 2,
+    '1.9.3': 2,
+    '1.9.2': 2,
+    '1.9.1': 2,
+    '1.9': 2,
+    '1.8.9': 1,
+    '1.8.8': 1,
+    '1.8.7': 1,
+    '1.8.6': 1,
+    '1.8.5': 1,
+    '1.8.4': 1,
+    '1.8.3': 1,
+    '1.8.2': 1,
+    '1.8.1': 1,
+    '1.8': 1,
+    '1.7.10': 1,
+    '1.7.9': 1,
+    '1.7.8': 1,
+    '1.7.7': 1,
+    '1.7.6': 1,
+    '1.7.5': 1,
+    '1.7.4': 1,
+    '1.7.2': 1,
+    '1.6.4': 1,
+    '1.6.2': 1,
+    '1.6.1': 1
+  };
+
+  // Get sorted game versions (newest first)
+  const gameVersions = Object.keys(gameVersionToPackFormat).sort((a, b) => {
+    const parseVersion = (version) => version.split('.').map(num => parseInt(num));
+    const aVersion = parseVersion(a);
+    const bVersion = parseVersion(b);
+    
+    for (let i = 0; i < Math.max(aVersion.length, bVersion.length); i++) {
+      const aPart = aVersion[i] || 0;
+      const bPart = bVersion[i] || 0;
+      if (aPart !== bPart) {
+        return bPart - aPart; // Descending order
+      }
+    }
+    return 0;
+  });
+
   // Current latest pack format version (as of 2025)
-  const LATEST_PACK_VERSION = 64;
+  const LATEST_PACK_VERSION = 63;
   const MIN_PACK_VERSION = 1;
 
   const isValidPackVersion = (version) => {
@@ -82,8 +179,23 @@ function App() {
     setIsDragOver(false);
   };
 
+  const handleGameVersionChange = (event) => {
+    const selectedVersion = event.target.value;
+    setSelectedGameVersion(selectedVersion);
+    
+    if (selectedVersion && gameVersionToPackFormat[selectedVersion]) {
+      setPackVersion(gameVersionToPackFormat[selectedVersion].toString());
+    } else {
+      setPackVersion('');
+    }
+  };
+
   const handlePackVersionChange = (event) => {
     setPackVersion(event.target.value);
+    // Clear game version selection if user manually enters pack version
+    if (selectedGameVersion) {
+      setSelectedGameVersion('');
+    }
   };
 
   const handleConvert = async () => {
@@ -147,7 +259,10 @@ function App() {
       
       // Create download filename
       const originalName = selectedFile.name.replace(/\.zip$/, '');
-      const newFileName = `${originalName}_v${packVersion}.zip`;
+      const versionSuffix = selectedGameVersion 
+        ? `_MC${selectedGameVersion}` 
+        : `_v${packVersion}`;
+      const newFileName = `${originalName}${versionSuffix}.zip`;
       
       setConversionStep('Download ready!');
       downloadFile(newZipBlob, newFileName);
@@ -235,23 +350,57 @@ function App() {
               
               {isValidResourcePack && (
                 <div className="version-input-section">
-                  <label htmlFor="pack-version" className="version-label">
-                    Target Pack Format Version:
-                  </label>
-                  <input
-                    type="number"
-                    id="pack-version"
-                    className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
-                    value={packVersion}
-                    onChange={handlePackVersionChange}
-                    placeholder={`Enter version (${MIN_PACK_VERSION}-${LATEST_PACK_VERSION})`}
-                    min={MIN_PACK_VERSION}
-                    max={LATEST_PACK_VERSION}
-                  />
-                  {packVersion && !isValidPackVersion(packVersion) && (
-                    <p className="version-error">
-                      Please enter a valid pack format version between {MIN_PACK_VERSION} and {LATEST_PACK_VERSION}
-                    </p>
+                  <div className="version-selection-group">
+                    <label htmlFor="game-version" className="version-label">
+                      Target Minecraft Version:
+                    </label>
+                    <select
+                      id="game-version"
+                      className="version-dropdown"
+                      value={selectedGameVersion}
+                      onChange={handleGameVersionChange}
+                    >
+                      <option value="">Select a Minecraft version</option>
+                      {gameVersions.map(version => (
+                        <option key={version} value={version}>
+                          {version} (Pack Format {gameVersionToPackFormat[version]})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="version-or-divider">
+                    <span>OR</span>
+                  </div>
+
+                  <div className="version-selection-group">
+                    <label htmlFor="pack-version" className="version-label">
+                      Manual Pack Format Version:
+                    </label>
+                    <input
+                      type="number"
+                      id="pack-version"
+                      className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
+                      value={packVersion}
+                      onChange={handlePackVersionChange}
+                      placeholder={`Enter version (${MIN_PACK_VERSION}-${LATEST_PACK_VERSION})`}
+                      min={MIN_PACK_VERSION}
+                      max={LATEST_PACK_VERSION}
+                      disabled={selectedGameVersion !== ''}
+                    />
+                    {packVersion && !isValidPackVersion(packVersion) && (
+                      <p className="version-error">
+                        Please enter a valid pack format version between {MIN_PACK_VERSION} and {LATEST_PACK_VERSION}
+                      </p>
+                    )}
+                  </div>
+
+                  {selectedGameVersion && (
+                    <div className="selected-version-info">
+                      <p>
+                        <strong>Selected:</strong> Minecraft {selectedGameVersion} → Pack Format {packVersion}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
