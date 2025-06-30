@@ -348,4 +348,18 @@
   font-size: 1rem;
 }
 
+/* Loading indicator while fetching latest pack formats */
+.loading-text {
+  color: #3b82f6;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
 /* Remove unused styles */

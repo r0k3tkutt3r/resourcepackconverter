@@ -1,5 +1,5 @@
 import './App.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -11,109 +11,122 @@ function App() {
   const [isConverting, setIsConverting] = useState(false);
   const [conversionStep, setConversionStep] = useState('');
 
-  // Minecraft version to pack format mapping
-  const gameVersionToPackFormat = {
-    '1.21.6': 63,
-    '1.21.5': 46,
-    '1.21.4': 46,
-    '1.21.3': 42,
-    '1.21.2': 42,
-    '1.21.1': 34,
-    '1.21': 34,
-    '1.20.6': 32,
-    '1.20.5': 32,
-    '1.20.4': 22,
-    '1.20.3': 22,
-    '1.20.2': 18,
-    '1.20.1': 15,
-    '1.20': 15,
-    '1.19.4': 13,
-    '1.19.3': 12,
-    '1.19.2': 9,
-    '1.19.1': 9,
-    '1.19': 9,
-    '1.18.2': 8,
-    '1.18.1': 8,
-    '1.18': 8,
-    '1.17.1': 7,
-    '1.17': 7,
-    '1.16.5': 6,
-    '1.16.4': 6,
-    '1.16.3': 6,
-    '1.16.2': 6,
-    '1.16.1': 5,
-    '1.16': 5,
-    '1.15.2': 5,
-    '1.15.1': 5,
-    '1.15': 5,
-    '1.14.4': 4,
-    '1.14.3': 4,
-    '1.14.2': 4,
-    '1.14.1': 4,
-    '1.14': 4,
-    '1.13.2': 4,
-    '1.13.1': 4,
-    '1.13': 4,
-    '1.12.2': 3,
-    '1.12.1': 3,
-    '1.12': 3,
-    '1.11.2': 3,
-    '1.11.1': 3,
-    '1.11': 3,
-    '1.10.2': 2,
-    '1.10.1': 2,
-    '1.10': 2,
-    '1.9.4': 2,
-    '1.9.3': 2,
-    '1.9.2': 2,
-    '1.9.1': 2,
-    '1.9': 2,
-    '1.8.9': 1,
-    '1.8.8': 1,
-    '1.8.7': 1,
-    '1.8.6': 1,
-    '1.8.5': 1,
-    '1.8.4': 1,
-    '1.8.3': 1,
-    '1.8.2': 1,
-    '1.8.1': 1,
-    '1.8': 1,
-    '1.7.10': 1,
-    '1.7.9': 1,
-    '1.7.8': 1,
-    '1.7.7': 1,
-    '1.7.6': 1,
-    '1.7.5': 1,
-    '1.7.4': 1,
-    '1.7.2': 1,
-    '1.6.4': 1,
-    '1.6.2': 1,
-    '1.6.1': 1
-  };
+  // Dynamically fetched version→pack_format map
+  const [gameVersionToPackFormat, setGameVersionToPackFormat] = useState({});
+  const [releaseList, setReleaseList] = useState([]); // releases only
+  const [snapshotList, setSnapshotList] = useState([]); // dev snapshots
+  const [gameVersions, setGameVersions] = useState([]); // currently shown in dropdown
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [latestPackVersion, setLatestPackVersion] = useState(0);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(true);
 
-  // Get sorted game versions (newest first)
-  const gameVersions = Object.keys(gameVersionToPackFormat).sort((a, b) => {
-    const parseVersion = (version) => version.split('.').map(num => parseInt(num));
-    const aVersion = parseVersion(a);
-    const bVersion = parseVersion(b);
-    
-    for (let i = 0; i < Math.max(aVersion.length, bVersion.length); i++) {
-      const aPart = aVersion[i] || 0;
-      const bPart = bVersion[i] || 0;
-      if (aPart !== bPart) {
-        return bPart - aPart; // Descending order
+  // Fetch Resource-pack format table from the Minecraft Wiki every time the app loads
+  useEffect(() => {
+    const fetchPackFormats = async () => {
+      setIsLoadingVersions(true);
+      try {
+        // Fetch only the "List of resource pack formats" section via the MediaWiki API – CORS-friendly
+        const apiUrl = 'https://minecraft.wiki/api.php?action=parse&page=Pack_format&prop=text&section=2&formatversion=2&format=json';
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        const sectionHtml = data.parse?.text || '';
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(sectionHtml, 'text/html');
+
+        const resourceTable = doc.querySelector('table'); // the first table in section is the formats
+
+        if (!resourceTable) throw new Error('Resource-pack format table not found');
+
+        // Build mapping of display label → pack_format (keep ranges like "1.20.x" intact)
+        const mapping = {};
+        const releasesTmp = new Set();
+        const snapshotsTmp = new Set();
+        let maxPackFmt = 0;
+
+        const rows = resourceTable.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('th, td');
+          if (cells.length < 3) return;
+
+          const packFmtVal = parseInt(cells[0].textContent.trim());
+          if (isNaN(packFmtVal)) return;
+
+          maxPackFmt = Math.max(maxPackFmt, packFmtVal);
+
+          // Releases column – already human-readable with ranges (e.g. "1.20.x–1.20.1")
+          const releasesText = cells[2].textContent.trim().replace(/\u2013|\u2014|–|—/g, '-');
+
+          releasesText.split(',').forEach(segment => {
+            const label = segment.trim();
+            if (!label || /^[-–—]$/.test(label)) return;
+            mapping[label] = packFmtVal;
+            releasesTmp.add(label);
+          });
+
+          // DEV column processing (snapshot versions)
+          const devText = cells[1]?.textContent?.trim() || '';
+          if (devText && !/^[-–—]$/.test(devText)) {
+            const devClean = devText.replace(/\u2013|\u2014|–|—/g, '-');
+            devClean.split(',').forEach(seg => {
+              const devLabel = seg.trim();
+              if (!devLabel) return;
+              mapping[devLabel] = packFmtVal;
+              snapshotsTmp.add(devLabel);
+            });
+          }
+        });
+
+        // Sort by pack_format desc then alphabetic
+        const sortFn = (a, b) => {
+          const diff = mapping[b] - mapping[a];
+          if (diff !== 0) return diff;
+          return a.localeCompare(b);
+        };
+        const releaseSorted = Array.from(releasesTmp).sort(sortFn);
+        const snapshotSorted = Array.from(snapshotsTmp).sort(sortFn);
+
+        setReleaseList(releaseSorted);
+        setSnapshotList(snapshotSorted);
+
+        setGameVersionToPackFormat(mapping);
+        setGameVersions(releaseSorted);
+        setLatestPackVersion(maxPackFmt);
+      } catch (err) {
+        console.error('Unable to fetch pack formats:', err);
+      } finally {
+        setIsLoadingVersions(false);
+      }
+    };
+
+    fetchPackFormats();
+  }, []);
+
+  // When mapping loads, pick default latest version for dropdown convenience
+  useEffect(() => {
+    // Update dropdown list when toggle changes
+    if (!isLoadingVersions) {
+      const list = showSnapshots ? [...releaseList, ...snapshotList] : releaseList;
+      setGameVersions(list);
+    }
+  }, [showSnapshots, releaseList, snapshotList, isLoadingVersions]);
+
+  useEffect(() => {
+    if (!isLoadingVersions && gameVersions.length) {
+      // If previously selected version not in list, reset
+      if (!gameVersions.includes(selectedGameVersion)) {
+        const latest = gameVersions[0];
+        setSelectedGameVersion(latest);
+        setPackVersion(gameVersionToPackFormat[latest]?.toString() || '');
       }
     }
-    return 0;
-  });
+  }, [gameVersions, isLoadingVersions]);
 
-  // Current latest pack format version (as of 2025)
-  const LATEST_PACK_VERSION = 63;
   const MIN_PACK_VERSION = 1;
 
   const isValidPackVersion = (version) => {
     const num = parseInt(version);
-    return !isNaN(num) && num >= MIN_PACK_VERSION && num <= LATEST_PACK_VERSION;
+    return !isNaN(num) && num >= MIN_PACK_VERSION && num <= latestPackVersion;
   };
 
   const canConvert = () => {
@@ -351,6 +364,17 @@ function App() {
               {isValidResourcePack && (
                 <div className="version-input-section">
                   <div className="version-selection-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={showSnapshots}
+                        onChange={e => setShowSnapshots(e.target.checked)}
+                      />{' '}
+                      Include snapshots
+                    </label>
+                  </div>
+
+                  <div className="version-selection-group">
                     <label htmlFor="game-version" className="version-label">
                       Target Minecraft Version:
                     </label>
@@ -359,14 +383,20 @@ function App() {
                       className="version-dropdown"
                       value={selectedGameVersion}
                       onChange={handleGameVersionChange}
+                      disabled={isLoadingVersions}
                     >
-                      <option value="">Select a Minecraft version</option>
+                      <option value="">
+                        {isLoadingVersions ? 'Loading versions...' : 'Select a Minecraft version'}
+                      </option>
                       {gameVersions.map(version => (
                         <option key={version} value={version}>
                           {version} (Pack Format {gameVersionToPackFormat[version]})
                         </option>
                       ))}
                     </select>
+                    {isLoadingVersions && (
+                      <p className="loading-text">🔄 Fetching latest pack format data...</p>
+                    )}
                   </div>
 
                   <div className="version-or-divider">
@@ -383,14 +413,14 @@ function App() {
                       className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
                       value={packVersion}
                       onChange={handlePackVersionChange}
-                      placeholder={`Enter version (${MIN_PACK_VERSION}-${LATEST_PACK_VERSION})`}
+                      placeholder={isLoadingVersions ? 'Loading…' : `Enter version (${MIN_PACK_VERSION}-${latestPackVersion})`}
                       min={MIN_PACK_VERSION}
-                      max={LATEST_PACK_VERSION}
-                      disabled={selectedGameVersion !== ''}
+                      max={latestPackVersion}
+                      disabled={selectedGameVersion !== '' || isLoadingVersions}
                     />
                     {packVersion && !isValidPackVersion(packVersion) && (
                       <p className="version-error">
-                        Please enter a valid pack format version between {MIN_PACK_VERSION} and {LATEST_PACK_VERSION}
+                        Please enter a valid pack format version between {MIN_PACK_VERSION} and {latestPackVersion}
                       </p>
                     )}
                   </div>
