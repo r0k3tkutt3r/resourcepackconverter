@@ -144,6 +144,72 @@
   box-shadow: 0 8px 32px rgba(0, 123, 255, 0.3);
 }
 
+.convert-button + .convert-button {
+  margin-top: 1rem;
+}
+
+.download-section {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 123, 255, 0.9);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.drag-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: white;
+  text-align: center;
+}
+
+.drag-overlay-icon {
+  width: 4rem;
+  height: 4rem;
+  color: white;
+  animation: bounce 1s infinite;
+}
+
+.drag-overlay-text {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+.download-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-right: 0.5rem;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .convert-button.enabled {
   background: #007bff;
   box-shadow: 

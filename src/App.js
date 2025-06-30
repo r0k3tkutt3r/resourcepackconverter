@@ -12,6 +12,8 @@ function App() {
   const [selectedGameVersion, setSelectedGameVersion] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [conversionStep, setConversionStep] = useState('');
+  const [convertedFileBlob, setConvertedFileBlob] = useState(null);
+  const [convertedFileName, setConvertedFileName] = useState('');
   // Bulk mode state – allows converting to a range of versions in one go
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [bulkStartVersion, setBulkStartVersion] = useState('');
@@ -173,6 +175,15 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownload = () => {
+    if (convertedFileBlob && convertedFileName) {
+      downloadFile(convertedFileBlob, convertedFileName);
+      // Clear the converted file data after download
+      setConvertedFileBlob(null);
+      setConvertedFileName('');
+    }
+  };
+
   const scanZipFile = async (file) => {
     setIsScanning(true);
     setIsValidResourcePack(false);
@@ -215,29 +226,15 @@ function App() {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
+      setConvertedFileBlob(null);
+      setConvertedFileName('');
       scanZipFile(file);
     }
   };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragOver(false);
-    const file = event.dataTransfer.files[0];
-    if (file) {
-      setSelectedFile(file);
-      scanZipFile(file);
-    }
-  };
 
-  const handleDragOver = (event) => {
-    event.preventDefault();
-    setIsDragOver(true);
-  };
 
-  const handleDragLeave = (event) => {
-    event.preventDefault();
-    setIsDragOver(false);
-  };
+
 
   const handleGameVersionChange = (event) => {
     const selectedVersion = event.target.value;
@@ -279,6 +276,47 @@ function App() {
       setBulkEndVersion('');
     }
   }, [isBulkMode]);
+
+  // Add global drag and drop event listeners
+  useEffect(() => {
+    const handleGlobalDragOver = (event) => {
+      event.preventDefault();
+      setIsDragOver(true);
+    };
+
+    const handleGlobalDragLeave = (event) => {
+      // Only hide drag-over state when leaving the entire window
+      if (event.clientX === 0 || event.clientY === 0 || 
+          event.clientX === window.innerWidth || event.clientY === window.innerHeight) {
+        setIsDragOver(false);
+      }
+    };
+
+    const handleGlobalDrop = (event) => {
+      event.preventDefault();
+      setIsDragOver(false);
+      
+      const files = event.dataTransfer.files;
+      if (files.length > 0) {
+        setSelectedFile(files[0]);
+        setConvertedFileBlob(null);
+        setConvertedFileName('');
+        scanZipFile(files[0]);
+      }
+    };
+
+    // Add event listeners to document
+    document.addEventListener('dragover', handleGlobalDragOver);
+    document.addEventListener('dragleave', handleGlobalDragLeave);
+    document.addEventListener('drop', handleGlobalDrop);
+
+    // Cleanup event listeners on unmount
+    return () => {
+      document.removeEventListener('dragover', handleGlobalDragOver);
+      document.removeEventListener('dragleave', handleGlobalDragLeave);
+      document.removeEventListener('drop', handleGlobalDrop);
+    };
+  }, []);
 
   const handleConvert = async () => {
     if (!canConvert()) return;
@@ -379,8 +417,9 @@ function App() {
           ? `${originalName.replace(detectVersionStrings(originalName)[0], getBaseVersion(oldestVersionLabel))}_bulk.zip`
           : `${originalName}_bulk.zip`;
 
-        setConversionStep('Download ready!');
-        downloadFile(bulkBlob, bulkFileName);
+        setConversionStep('Conversion complete!');
+        setConvertedFileBlob(bulkBlob);
+        setConvertedFileName(bulkFileName);
 
         setTimeout(() => {
           setConversionStep('');
@@ -447,8 +486,9 @@ function App() {
           newFileName = `${originalName}${versionSuffix}.zip`;
         }
 
-        setConversionStep('Download ready!');
-        downloadFile(newZipBlob, newFileName);
+        setConversionStep('Conversion complete!');
+        setConvertedFileBlob(newZipBlob);
+        setConvertedFileName(newFileName);
 
         setTimeout(() => {
           setConversionStep('');
@@ -506,6 +546,16 @@ function App() {
 
   return (
     <div className="App">
+      {isDragOver && (
+        <div className="drag-overlay">
+          <div className="drag-overlay-content">
+            <svg className="drag-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p className="drag-overlay-text">Drop your resource pack anywhere!</p>
+          </div>
+        </div>
+      )}
       <header className="App-header">
         <h1 className="App-title">Resource Pack Converter</h1>
       </header>
@@ -513,9 +563,6 @@ function App() {
         <div className="upload-section">
           <div 
             className={`upload-area ${isDragOver ? 'drag-over' : ''}`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
           >
             <input
               type="file"
@@ -530,7 +577,7 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className="upload-text">
-                  {selectedFile ? selectedFile.name : 'Drop your resource pack here or click to browse'}
+                  {selectedFile ? selectedFile.name : 'Drop your resource pack anywhere on the page or click to browse'}
                 </p>
                 <p className="upload-subtext">
                   Supports .zip files (Java Edition resource packs)
@@ -556,6 +603,20 @@ function App() {
               {isConverting && conversionStep && (
                 <div className="validation-message converting">
                   🔄 {conversionStep}
+                </div>
+              )}
+              
+              {convertedFileBlob && (
+                <div className="download-section">
+                  <button 
+                    className="convert-button enabled"
+                    onClick={handleDownload}
+                  >
+                    <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 3v12" />
+                    </svg>
+                    Download Converted Pack
+                  </button>
                 </div>
               )}
               
