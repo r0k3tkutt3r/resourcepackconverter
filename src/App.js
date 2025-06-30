@@ -7,6 +7,8 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isValidResourcePack, setIsValidResourcePack] = useState(false);
   const [packVersion, setPackVersion] = useState('');
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionStep, setConversionStep] = useState('');
 
   // Current latest pack format version (as of 2025)
   const LATEST_PACK_VERSION = 64;
@@ -18,7 +20,18 @@ function App() {
   };
 
   const canConvert = () => {
-    return isValidResourcePack && !isScanning && packVersion && isValidPackVersion(packVersion);
+    return isValidResourcePack && !isScanning && !isConverting && packVersion && isValidPackVersion(packVersion);
+  };
+
+  const downloadFile = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const scanZipFile = async (file) => {
@@ -73,10 +86,84 @@ function App() {
     setPackVersion(event.target.value);
   };
 
-  const handleConvert = () => {
-    if (canConvert()) {
-      alert(`Converting ${selectedFile.name} to pack format version ${packVersion}...`);
-      // TODO: Add conversion logic here
+  const handleConvert = async () => {
+    if (!canConvert()) return;
+
+    setIsConverting(true);
+    
+    try {
+      setConversionStep('Loading resource pack...');
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const zipContents = await zip.loadAsync(selectedFile);
+      
+      setConversionStep('Reading pack.mcmeta file...');
+      const packMcmetaFile = zipContents.file('pack.mcmeta');
+      if (!packMcmetaFile) {
+        throw new Error('pack.mcmeta file not found');
+      }
+      
+      const packMcmetaContent = await packMcmetaFile.async('string');
+      
+      setConversionStep('Updating pack format version...');
+      // Parse the JSON and update the pack format
+      const packData = JSON.parse(packMcmetaContent);
+      if (!packData.pack || typeof packData.pack.pack_format === 'undefined') {
+        throw new Error('Invalid pack.mcmeta format');
+      }
+      
+      // Update the pack format version
+      packData.pack.pack_format = parseInt(packVersion);
+      
+      // Convert back to JSON with proper formatting
+      const updatedMcmetaContent = JSON.stringify(packData, null, 2);
+      
+      setConversionStep('Creating new resource pack...');
+      // Create a new zip with the updated pack.mcmeta
+      const newZip = new JSZip();
+      
+      // Add all files from the original zip except pack.mcmeta
+      const filePromises = [];
+      zipContents.forEach((relativePath, file) => {
+        if (relativePath !== 'pack.mcmeta' && !file.dir) {
+          filePromises.push(
+            file.async('blob').then(blob => {
+              newZip.file(relativePath, blob);
+            })
+          );
+        } else if (file.dir) {
+          newZip.folder(relativePath);
+        }
+      });
+      
+      await Promise.all(filePromises);
+      
+      // Add the updated pack.mcmeta
+      newZip.file('pack.mcmeta', updatedMcmetaContent);
+      
+      setConversionStep('Generating download...');
+      // Generate the new zip file
+      const newZipBlob = await newZip.generateAsync({ type: 'blob' });
+      
+      // Create download filename
+      const originalName = selectedFile.name.replace(/\.zip$/, '');
+      const newFileName = `${originalName}_v${packVersion}.zip`;
+      
+      setConversionStep('Download ready!');
+      downloadFile(newZipBlob, newFileName);
+      
+      setTimeout(() => {
+        setConversionStep('');
+        setIsConverting(false);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Conversion error:', error);
+      setConversionStep('Error during conversion');
+      setTimeout(() => {
+        setConversionStep('');
+        setIsConverting(false);
+      }, 3000);
     }
   };
 
@@ -140,6 +227,12 @@ function App() {
                 </div>
               )}
               
+              {isConverting && conversionStep && (
+                <div className="validation-message converting">
+                  🔄 {conversionStep}
+                </div>
+              )}
+              
               {isValidResourcePack && (
                 <div className="version-input-section">
                   <label htmlFor="pack-version" className="version-label">
@@ -163,13 +256,13 @@ function App() {
                 </div>
               )}
               
-              <button 
-                className={`convert-button ${canConvert() ? 'enabled' : 'disabled'}`}
-                onClick={handleConvert}
-                disabled={!canConvert()}
-              >
-                {isScanning ? 'Scanning...' : 'Convert Resource Pack'}
-              </button>
+                              <button 
+                  className={`convert-button ${canConvert() ? 'enabled' : 'disabled'}`}
+                  onClick={handleConvert}
+                  disabled={!canConvert()}
+                >
+                  {isScanning ? 'Scanning...' : isConverting ? 'Converting...' : 'Convert Resource Pack'}
+                </button>
             </div>
           )}
         </div>

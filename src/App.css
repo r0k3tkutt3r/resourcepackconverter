@@ -216,6 +216,12 @@
   border: 1px solid #f5c6cb;
 }
 
+.validation-message.converting {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
 .version-input-section {
   margin: 1.5rem 0;
   text-align: left;
