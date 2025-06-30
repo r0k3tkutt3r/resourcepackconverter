@@ -90,4 +90,4 @@ The app dynamically fetches the latest pack format data from the Minecraft Wiki,
 
 ## 📄 License
 
-This project is released under the **MIT License** – see [LICENSE](LICENSE) for details.
+Use freely, as long as you give credit.
