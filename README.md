@@ -1,70 +1,82 @@
-# Getting Started with Create React App
+# Resource Pack Converter
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Convert Minecraft Java Edition resource-packs to **any target game version** in seconds – directly in your browser, no installs, no servers, 100 % privacy-friendly.
 
-## Available Scripts
+## ✨ Why you'll love it
 
-In the project directory, you can run:
+- **One-click conversions** – drag-and-drop a `.zip`, pick the game version, download the converted pack.
+- **Zero setup** – runs fully client-side in React; *your files never leave your computer*.
+- **Always up-to-date** – ships with an accurate Minecraft → pack-format mapping (1.6.1 → 1.21.6).
+- **Error-proof** – warns about missing `pack.mcmeta`, invalid versions, and shows live progress messages.
+- **Smart filenames** – output packs are named like `MyPack_MC1.20.4.zip` so you know exactly what you got.
+- **Beautiful UX** – responsive design, drag-over highlight, animated buttons, dark-friendly colors.
 
-### `npm start`
+## 🚀 Features at a glance
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Feature | Description |
+|---------|-------------|
+| Drag & Drop Upload | Drop or browse any Java Edition resource-pack `.zip`. |
+| Instant Validation | Scans archive for `pack.mcmeta` before enabling conversion. |
+| Game-Version Picker | Dropdown for every MC version 1.6.1 → 1.21.6 – auto-fills pack-format. |
+| Manual Override | Enter a pack-format manually if you need something exotic. |
+| Client-side Conversion | Uses [JSZip](https://stuk.github.io/jszip/) to edit `pack.mcmeta`, then re-zip. |
+| Progress Feedback | Friendly messages: _Loading_, _Updating_, _Re-Packaging_, _Ready to Download_. |
+| Automatic Download | Generates and triggers the browser download once done. |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🖥️ Quick start (development)
 
-### `npm test`
+```bash
+# 1. Install dependencies
+npm install
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# 2. Start the dev server
+npm start
+# Open http://localhost:3000
+```
 
-### `npm run build`
+The app is built with **Create React App** – all familiar CRA scripts still work (`npm test`, `npm run build`, etc.).
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Production build
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm run build
+```
+The optimized bundle will be placed in `build/` ready to deploy on any static host (GitHub Pages, Netlify, Cloudflare Pages, …).
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🛠️ How it works under the hood
 
-### `npm run eject`
+1. The user selects or drops a `.zip` file.
+2. The app loads it with **JSZip** and checks for `pack.mcmeta`.
+3. When the user picks a target version, the correct `pack_format` (e.g. `63` for 1.21.6) is looked up from the in-code mapping.
+4. `pack.mcmeta` is JSON-parsed, the `pack.pack_format` number is replaced, and the file is re-stringified.
+5. A fresh zip archive is created: every original file is copied over **except** the old `pack.mcmeta`; the modified one is added instead.
+6. The new archive is generated as a Blob and automatically downloaded.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Everything happens **locally** – perfect for sensitive packs or offline use.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📜 Version → pack-format map (excerpt)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+| Minecraft | Pack format |
+|-----------|------------|
+| 1.21.6 | 63 |
+| 1.21.4 – 1.21.5 | 46 |
+| 1.21.2 – 1.21.3 | 42 |
+| 1.21 / 1.21.1 | 34 |
+| 1.20.5 – 1.20.6 | 32 |
+| … | … |
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+*(The full list is in `src/App.js`.)*
 
-## Learn More
+## 🤝 Contributing
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Pull requests and issues are welcome!  Feel free to open a PR to update mappings, improve styling, or add new features.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# lint & test (if you add tests)
+npm run lint
+npm test
+```
 
-### Code Splitting
+## 📄 License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is released under the **MIT License** – see [LICENSE](LICENSE) for details.
