@@ -375,6 +375,7 @@
   display: inline-block;
   width: 60px;
   height: 34px;
+  flex-shrink: 0;
 }
 
 .switch input {
@@ -421,6 +422,11 @@ input:checked + .slider:before {
 .switch-label {
   font-weight: 600;
   color: #333;
+}
+
+.switch-desc {
+  font-size: 0.875rem;
+  color: #6c757d;
 }
 
 /* ------------------------------------------------------- */

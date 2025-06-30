@@ -16,6 +16,8 @@ function App() {
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [bulkStartVersion, setBulkStartVersion] = useState('');
   const [bulkEndVersion, setBulkEndVersion] = useState('');
+  // Smart file naming switch
+  const [isSmartNaming, setIsSmartNaming] = useState(false);
 
   // Dynamically fetched version→pack_format map
   const [gameVersionToPackFormat, setGameVersionToPackFormat] = useState({});
@@ -152,6 +154,11 @@ function App() {
     if (isBulkMode) {
       return bulkStartVersion && bulkEndVersion;
     }
+    if (isSmartNaming) {
+      // If smart naming has more than one detected version string, block convert
+      const originalName = selectedFile?.name || '';
+      if (detectVersionStrings(originalName).length > 1) return false;
+    }
     return packVersion && isValidPackVersion(packVersion);
   };
 
@@ -281,6 +288,14 @@ function App() {
     try {
       const JSZip = (await import('jszip')).default;
 
+      // Validate smart naming multiple detections upfront
+      if (isSmartNaming) {
+        const detected = detectVersionStrings(selectedFile.name);
+        if (detected.length > 1) {
+          throw new Error('Smart Naming Error: Multiple Minecraft version names detected in filename.');
+        }
+      }
+
       if (isBulkMode) {
         setConversionStep('Loading resource pack...');
 
@@ -302,6 +317,8 @@ function App() {
 
         const bulkZip = new JSZip();
         const originalName = selectedFile.name.replace(/\.zip$/, '');
+
+        const oldestVersionLabel = range[range.length - 1]; // gameVersions sorted newest→oldest
 
         for (const versionLabel of range) {
           const packFmt = gameVersionToPackFormat[versionLabel];
@@ -341,13 +358,26 @@ function App() {
           newZip.file('pack.mcmeta', updatedMcmeta);
 
           const newZipBlob = await newZip.generateAsync({ type: 'blob' });
-          const childName = `${originalName}_MC${versionLabel}.zip`;
+          let childName;
+          if (isSmartNaming) {
+            const detected = detectVersionStrings(originalName);
+            if (detected.length === 1) {
+              const replacement = getBaseVersion(versionLabel);
+              childName = `${originalName.replace(detected[0], replacement)}.zip`;
+            } else {
+              childName = `${originalName}_MC${getBaseVersion(versionLabel)}.zip`;
+            }
+          } else {
+            childName = `${originalName}_MC${getBaseVersion(versionLabel)}.zip`;
+          }
           bulkZip.file(childName, newZipBlob);
         }
 
         setConversionStep('Packaging bulk download...');
         const bulkBlob = await bulkZip.generateAsync({ type: 'blob' });
-        const bulkFileName = `${originalName}_bulk.zip`;
+        const bulkFileName = isSmartNaming && detectVersionStrings(originalName).length === 1
+          ? `${originalName.replace(detectVersionStrings(originalName)[0], getBaseVersion(oldestVersionLabel))}_bulk.zip`
+          : `${originalName}_bulk.zip`;
 
         setConversionStep('Download ready!');
         downloadFile(bulkBlob, bulkFileName);
@@ -401,8 +431,21 @@ function App() {
         const newZipBlob = await newZip.generateAsync({ type: 'blob' });
 
         const originalName = selectedFile.name.replace(/\.zip$/, '');
-        const versionSuffix = selectedGameVersion ? `_MC${selectedGameVersion}` : `_v${packVersion}`;
-        const newFileName = `${originalName}${versionSuffix}.zip`;
+
+        let newFileName;
+        if (isSmartNaming) {
+          const detected = detectVersionStrings(originalName);
+          const replacement = selectedGameVersion ? getBaseVersion(selectedGameVersion) : null;
+          if (detected.length === 1 && replacement) {
+            newFileName = `${originalName.replace(detected[0], replacement)}.zip`;
+          } else {
+            const versionSuffix = selectedGameVersion ? `_MC${getBaseVersion(selectedGameVersion)}` : `_v${packVersion}`;
+            newFileName = `${originalName}${versionSuffix}.zip`;
+          }
+        } else {
+          const versionSuffix = selectedGameVersion ? `_MC${getBaseVersion(selectedGameVersion)}` : `_v${packVersion}`;
+          newFileName = `${originalName}${versionSuffix}.zip`;
+        }
 
         setConversionStep('Download ready!');
         downloadFile(newZipBlob, newFileName);
@@ -414,7 +457,7 @@ function App() {
       }
     } catch (error) {
       console.error('Conversion error:', error);
-      setConversionStep('Error during conversion');
+      setConversionStep(error.message || 'Error during conversion');
       setTimeout(() => {
         setConversionStep('');
         setIsConverting(false);
@@ -432,6 +475,33 @@ function App() {
         : "❌ Invalid resource pack - pack.mcmeta not found";
     }
     return "";
+  };
+
+  /* ---------------- Helper for smart naming ---------------- */
+  // Detect version strings (1.6 and later) in a filename (without regex false positives like 1.2.3)
+  const versionPattern = /1\.(\d{1,2})(?:\.(\d{1,2}))?/g; // matches 1.xx or 1.xx.yy
+
+  const detectVersionStrings = (filename) => {
+    const matches = [];
+    let m;
+    while ((m = versionPattern.exec(filename)) !== null) {
+      const minor = parseInt(m[1], 10);
+      if (minor >= 6) {
+        // Valid 1.6+
+        let ver = `1.${m[1]}`;
+        if (typeof m[2] !== 'undefined') ver += `.${m[2]}`;
+        matches.push(ver);
+      }
+    }
+    return [...new Set(matches)]; // unique
+  };
+
+  // Derive the base (oldest) version string from a label (e.g. "1.14 - 1.15" → "1.14")
+  const getBaseVersion = (label) => {
+    if (!label) return label;
+    // Remove whitespace then split on dash
+    const cleaned = label.replace(/\s+/g, '');
+    return cleaned.split('-')[0];
   };
 
   return (
@@ -502,6 +572,21 @@ function App() {
                       <span className="slider" />
                     </label>
                     <span className="switch-label">Bulk Mode</span>
+                    <span className="switch-desc">Convert to a range of versions and zip them together</span>
+                  </div>
+
+                  {/* Smart naming switch */}
+                  <div className="version-selection-group bulk-mode-toggle">
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={isSmartNaming}
+                        onChange={(e) => setIsSmartNaming(e.target.checked)}
+                      />
+                      <span className="slider" />
+                    </label>
+                    <span className="switch-label">Smart File Naming</span>
+                    <span className="switch-desc">Rename output files by replacing detected version with target version (ranges use older version)</span>
                   </div>
 
                   {/* Snapshot toggle remains */}
