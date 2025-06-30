@@ -4,17 +4,45 @@ import { useState } from 'react';
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isValidResourcePack, setIsValidResourcePack] = useState(false);
+
+  const scanZipFile = async (file) => {
+    setIsScanning(true);
+    setIsValidResourcePack(false);
+    
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const zipContents = await zip.loadAsync(file);
+      
+      // Check if pack.mcmeta exists in the zip
+      const hasPackMcmeta = zipContents.file('pack.mcmeta') !== null;
+      setIsValidResourcePack(hasPackMcmeta);
+    } catch (error) {
+      console.error('Error scanning zip file:', error);
+      setIsValidResourcePack(false);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
-    setSelectedFile(file);
+    if (file) {
+      setSelectedFile(file);
+      scanZipFile(file);
+    }
   };
 
   const handleDrop = (event) => {
     event.preventDefault();
     setIsDragOver(false);
     const file = event.dataTransfer.files[0];
-    setSelectedFile(file);
+    if (file) {
+      setSelectedFile(file);
+      scanZipFile(file);
+    }
   };
 
   const handleDragOver = (event) => {
@@ -28,10 +56,22 @@ function App() {
   };
 
   const handleConvert = () => {
-    if (selectedFile) {
+    if (selectedFile && isValidResourcePack) {
       alert(`Converting ${selectedFile.name}...`);
       // TODO: Add conversion logic here
     }
+  };
+
+  const getValidationMessage = () => {
+    if (isScanning) {
+      return "Scanning file for pack.mcmeta...";
+    }
+    if (selectedFile && !isScanning) {
+      return isValidResourcePack 
+        ? "✅ Valid Java Edition resource pack detected!"
+        : "❌ Invalid resource pack - pack.mcmeta not found";
+    }
+    return "";
   };
 
   return (
@@ -75,8 +115,19 @@ function App() {
               <p><strong>Name:</strong> {selectedFile.name}</p>
               <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
               <p><strong>Type:</strong> {selectedFile.type || 'Unknown'}</p>
-              <button className="convert-button" onClick={handleConvert}>
-                Convert Resource Pack
+              
+              {getValidationMessage() && (
+                <div className={`validation-message ${isScanning ? 'scanning' : isValidResourcePack ? 'valid' : 'invalid'}`}>
+                  {getValidationMessage()}
+                </div>
+              )}
+              
+              <button 
+                className={`convert-button ${isValidResourcePack && !isScanning ? 'enabled' : 'disabled'}`}
+                onClick={handleConvert}
+                disabled={!isValidResourcePack || isScanning}
+              >
+                {isScanning ? 'Scanning...' : 'Convert Resource Pack'}
               </button>
             </div>
           )}
