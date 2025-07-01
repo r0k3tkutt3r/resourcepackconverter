@@ -843,7 +843,7 @@ function App() {
             >
               <div className="features-grid">
                 <div className="feature-item">
-                  <div className="feature-icon">🔓</div>
+                  <div className="feature-icon">💻</div>
                   <h3>Open Source</h3>
                   <p>Fully transparent code available on GitHub. Contribute, inspect, or fork the project.</p>
                 </div>
