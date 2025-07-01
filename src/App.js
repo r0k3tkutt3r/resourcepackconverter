@@ -1,6 +1,7 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import githubMark from './assets/github-mark.svg';
+import { Analytics } from "@vercel/analytics/react";
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -867,6 +868,7 @@ function App() {
           </div>
         </div>
       </main>
+      <Analytics />
     </div>
   );
 }
