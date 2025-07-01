@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;700&display=swap');
+
 .App {
   text-align: center;
 }
@@ -17,6 +19,18 @@
   background-color: #282c34;
   padding: 2rem 0;
   color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .App-link {
@@ -35,6 +49,33 @@
 .App-title {
   font-size: 3rem;
   margin: 0;
+}
+
+.github-button {
+  background-color: white;
+  color: #333;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.github-button:hover {
+  background-color: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.github-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .App-main {
@@ -105,13 +146,26 @@
   margin: 0;
 }
 
+.conversion-wrapper {
+  position: relative;
+}
+
 .file-info {
-  margin-top: 2rem;
+  position: relative;
+  width: 100%;
   padding: 2rem;
   background-color: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #dee2e6;
   text-align: left;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.file-info.visible {
+  opacity: 1;
 }
 
 .file-info h3 {
@@ -252,6 +306,17 @@
       0 0 25px rgba(0, 123, 255, 0.8),
       0 0 50px rgba(0, 123, 255, 0.6),
       0 0 100px rgba(0, 123, 255, 0.3);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -498,3 +563,111 @@ input:checked + .slider:before {
 /* ------------------------------------------------------- */
 
 /* Remove unused styles */
+
+/* Ko-fi button styling */
+.ko-fi-button {
+  box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+  line-height: 36px;
+  min-width: 150px;
+  display: inline-block;
+  background-color: #72a4f2;
+  padding: 2px 12px;
+  border-radius: 7px;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Quicksand', Helvetica, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ko-fi-button:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.ko-fi-icon {
+  display: inline-block;
+  width: 20px;
+  height: 13px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.features-section {
+  margin: 0 0 3rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+  position: relative;
+  z-index: 1;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.feature-item {
+  text-align: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.feature-item h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.feature-item p {
+  margin: 0;
+  font-size: 1rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .features-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+  }
+}
+
+/* ---------------- File-info wrapper animation ---------------- */
+.file-info-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin: 3rem 0; /* top & bottom spacing */
+  transition: max-height 0.9s ease, opacity 0.9s ease;
+}
+
+.file-info-wrapper.visible {
+  max-height: 2000px; /* sufficiently large to accommodate content */
+  opacity: 1;
+}

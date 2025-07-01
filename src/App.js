@@ -1,5 +1,6 @@
 import './App.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import githubMark from './assets/github-mark.svg';
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -29,6 +30,20 @@ function App() {
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [latestPackVersion, setLatestPackVersion] = useState(0);
   const [isLoadingVersions, setIsLoadingVersions] = useState(true);
+
+  // Animation helpers
+  const conversionBoxRef = useRef(null);
+  const [conversionVisible, setConversionVisible] = useState(false);
+
+  // Toggle visibility after next frame for smooth transition
+  useEffect(() => {
+    if (selectedFile) {
+      const id = requestAnimationFrame(() => setConversionVisible(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setConversionVisible(false);
+    }
+  }, [selectedFile]);
 
   // Fetch Resource-pack format table from the Minecraft Wiki every time the app loads
   useEffect(() => {
@@ -231,10 +246,6 @@ function App() {
       scanZipFile(file);
     }
   };
-
-
-
-
 
   const handleGameVersionChange = (event) => {
     const selectedVersion = event.target.value;
@@ -544,6 +555,23 @@ function App() {
     return cleaned.split('-')[0];
   };
 
+  const KoFiButton = () => {
+    const containerRef = useRef(null);
+    useEffect(() => {
+      const script = document.createElement('script');
+      script.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
+      script.async = true;
+      script.onload = () => {
+        if (window.kofiwidget2 && containerRef.current) {
+          window.kofiwidget2.init('Support me on Ko-fi', '#72a4f2', 'Q5Q213FT5Q');
+          containerRef.current.innerHTML = window.kofiwidget2.getHTML();
+        }
+      };
+      document.head.appendChild(script);
+    }, []);
+    return <div ref={containerRef}></div>;
+  };
+
   return (
     <div className="App">
       {isDragOver && (
@@ -558,6 +586,18 @@ function App() {
       )}
       <header className="App-header">
         <h1 className="App-title">Resource Pack Converter</h1>
+        <div className="header-buttons">
+          <a 
+            href="https://github.com/r0k3tkutt3r/resourcepackconverter" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="github-button"
+          >
+            <img src={githubMark} alt="GitHub" className="github-icon" />
+            View code on GitHub
+          </a>
+          <KoFiButton />
+        </div>
       </header>
       <main className="App-main">
         <div className="upload-section">
@@ -586,208 +626,245 @@ function App() {
             </label>
           </div>
           
-          {selectedFile && (
-            <div className="file-info">
-              <h3>Selected File:</h3>
-              <p><strong>Name:</strong> {selectedFile.name}</p>
-              <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-              <p><strong>Type:</strong> {selectedFile.type || 'Unknown'}</p>
-              <p><strong>Pack:</strong> {originalPackVersion ? `format ${originalPackVersion}, game version ${originalGameLabel || 'Unknown'}` : 'Unknown'}</p>
-              
-              {getValidationMessage() && (
-                <div className={`validation-message ${isScanning ? 'scanning' : isValidResourcePack ? 'valid' : 'invalid'}`}>
-                  {getValidationMessage()}
-                </div>
-              )}
-              
-              {isConverting && conversionStep && (
-                <div className="validation-message converting">
-                  🔄 {conversionStep}
-                </div>
-              )}
-              
-              {convertedFileBlob && (
-                <div className="download-section">
-                  <button 
-                    className="convert-button enabled"
-                    onClick={handleDownload}
-                  >
-                    <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 3v12" />
-                    </svg>
-                    Download Converted Pack
-                  </button>
-                </div>
-              )}
-              
-              {isValidResourcePack && (
-                <div className="version-input-section">
-                  {/* Bulk Mode Switch */}
-                  <div className="version-selection-group bulk-mode-toggle">
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={isBulkMode}
-                        onChange={(e) => setIsBulkMode(e.target.checked)}
-                      />
-                      <span className="slider" />
-                    </label>
-                    <span className="switch-label">Bulk Mode</span>
-                    <span className="switch-desc">Convert to a range of versions and zip them together</span>
-                  </div>
-
-                  {/* Smart naming switch */}
-                  <div className="version-selection-group bulk-mode-toggle">
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={isSmartNaming}
-                        onChange={(e) => setIsSmartNaming(e.target.checked)}
-                      />
-                      <span className="slider" />
-                    </label>
-                    <span className="switch-label">Smart File Naming</span>
-                    <span className="switch-desc">Rename output files by replacing detected version with target version (ranges use older version)</span>
-                  </div>
-
-                  {/* Snapshot toggle remains */}
-                  <div className="version-selection-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={showSnapshots}
-                        onChange={e => setShowSnapshots(e.target.checked)}
-                      />{' '}
-                      Include snapshots
-                    </label>
-                  </div>
-
-                  {/* Single-version Inputs */}
-                  {!isBulkMode && (
-                    <>
-                      <div className="version-selection-group">
-                        <label htmlFor="game-version" className="version-label">
-                          Target Minecraft Version:
-                        </label>
-                        <select
-                          id="game-version"
-                          className="version-dropdown"
-                          value={selectedGameVersion}
-                          onChange={handleGameVersionChange}
-                          disabled={isLoadingVersions}
-                        >
-                          <option value="">
-                            {isLoadingVersions ? 'Loading versions...' : 'Select a Minecraft version'}
-                          </option>
-                          {gameVersions.map((version) => (
-                            <option key={version} value={version}>
-                              {version} (Pack Format {gameVersionToPackFormat[version]})
-                            </option>
-                          ))}
-                        </select>
-                        {isLoadingVersions && (
-                          <p className="loading-text">🔄 Fetching latest pack format data...</p>
-                        )}
-                      </div>
-
-                      <div className="version-or-divider">
-                        <span>OR</span>
-                      </div>
-
-                      <div className="version-selection-group">
-                        <label htmlFor="pack-version" className="version-label">
-                          Manual Pack Format Version:
-                        </label>
-                        <input
-                          type="number"
-                          id="pack-version"
-                          className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
-                          value={packVersion}
-                          onChange={handlePackVersionChange}
-                          placeholder={isLoadingVersions ? 'Loading…' : `Enter version (${MIN_PACK_VERSION}-${latestPackVersion})`}
-                          min={MIN_PACK_VERSION}
-                          max={latestPackVersion}
-                          disabled={selectedGameVersion !== '' || isLoadingVersions}
-                        />
-                        {packVersion && !isValidPackVersion(packVersion) && (
-                          <p className="version-error">
-                            Please enter a valid pack format version between {MIN_PACK_VERSION} and {latestPackVersion}
-                          </p>
-                        )}
-                      </div>
-
-                      {selectedGameVersion && (
-                        <div className="selected-version-info">
-                          <p>
-                            <strong>Selected:</strong> Minecraft {selectedGameVersion} → Pack Format {packVersion}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Bulk-mode Range Inputs */}
-                  {isBulkMode && (
-                    <>
-                      <div className="version-selection-group">
-                        <label htmlFor="bulk-start-version" className="version-label">Start Version:</label>
-                        <select
-                          id="bulk-start-version"
-                          className="version-dropdown"
-                          value={bulkStartVersion}
-                          onChange={handleBulkStartChange}
-                          disabled={isLoadingVersions}
-                        >
-                          <option value="">
-                            {isLoadingVersions ? 'Loading versions...' : 'Select start version'}
-                          </option>
-                          {gameVersions.map((version) => (
-                            <option key={version} value={version}>
-                              {version} (Pack Format {gameVersionToPackFormat[version]})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="version-selection-group">
-                        <label htmlFor="bulk-end-version" className="version-label">End Version:</label>
-                        <select
-                          id="bulk-end-version"
-                          className="version-dropdown"
-                          value={bulkEndVersion}
-                          onChange={handleBulkEndChange}
-                          disabled={isLoadingVersions}
-                        >
-                          <option value="">
-                            {isLoadingVersions ? 'Loading versions...' : 'Select end version'}
-                          </option>
-                          {gameVersions.map((version) => (
-                            <option key={version} value={version}>
-                              {version} (Pack Format {gameVersionToPackFormat[version]})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {bulkStartVersion && bulkEndVersion && (
-                        <div className="selected-version-info">
-                          <p><strong>Range:</strong> {bulkStartVersion} → {bulkEndVersion}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-              
-                              <button 
-                  className={`convert-button ${canConvert() ? 'enabled' : 'disabled'}`}
-                  onClick={handleConvert}
-                  disabled={!canConvert()}
+          <div className="conversion-wrapper">
+            <div className={`file-info-wrapper ${conversionVisible ? 'visible' : ''}`}>
+              {selectedFile && (
+                <div
+                  ref={conversionBoxRef}
+                  className={`file-info ${conversionVisible ? 'visible' : ''}`}
                 >
-                  {isScanning ? 'Scanning...' : isConverting ? 'Converting...' : 'Convert Resource Pack'}
-                </button>
+                  <h3>Selected File:</h3>
+                  <p><strong>Name:</strong> {selectedFile.name}</p>
+                  <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p><strong>Type:</strong> {selectedFile.type || 'Unknown'}</p>
+                  <p><strong>Pack:</strong> {originalPackVersion ? `format ${originalPackVersion}, game version ${originalGameLabel || 'Unknown'}` : 'Unknown'}</p>
+                  
+                  {getValidationMessage() && (
+                    <div className={`validation-message ${isScanning ? 'scanning' : isValidResourcePack ? 'valid' : 'invalid'}`}>
+                      {getValidationMessage()}
+                    </div>
+                  )}
+                  
+                  {isConverting && conversionStep && (
+                    <div className="validation-message converting">
+                      🔄 {conversionStep}
+                    </div>
+                  )}
+                  
+                  {convertedFileBlob && (
+                    <div className="download-section">
+                      <button 
+                        className="convert-button enabled"
+                        onClick={handleDownload}
+                      >
+                        <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 3v12" />
+                        </svg>
+                        Download Converted Pack
+                      </button>
+                    </div>
+                  )}
+                  
+                  {isValidResourcePack && (
+                    <div className="version-input-section">
+                      {/* Bulk Mode Switch */}
+                      <div className="version-selection-group bulk-mode-toggle">
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={isBulkMode}
+                            onChange={(e) => setIsBulkMode(e.target.checked)}
+                          />
+                          <span className="slider" />
+                        </label>
+                        <span className="switch-label">Bulk Mode</span>
+                        <span className="switch-desc">Convert to a range of versions and zip them together</span>
+                      </div>
+
+                      {/* Smart naming switch */}
+                      <div className="version-selection-group bulk-mode-toggle">
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={isSmartNaming}
+                            onChange={(e) => setIsSmartNaming(e.target.checked)}
+                          />
+                          <span className="slider" />
+                        </label>
+                        <span className="switch-label">Smart File Naming</span>
+                        <span className="switch-desc">Rename output files by replacing detected version with target version (ranges use older version)</span>
+                      </div>
+
+                      {/* Snapshot toggle remains */}
+                      <div className="version-selection-group">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={showSnapshots}
+                            onChange={e => setShowSnapshots(e.target.checked)}
+                          />{' '}
+                          Include snapshots
+                        </label>
+                      </div>
+
+                      {/* Single-version Inputs */}
+                      {!isBulkMode && (
+                        <>
+                          <div className="version-selection-group">
+                            <label htmlFor="game-version" className="version-label">
+                              Target Minecraft Version:
+                            </label>
+                            <select
+                              id="game-version"
+                              className="version-dropdown"
+                              value={selectedGameVersion}
+                              onChange={handleGameVersionChange}
+                              disabled={isLoadingVersions}
+                            >
+                              <option value="">
+                                {isLoadingVersions ? 'Loading versions...' : 'Select a Minecraft version'}
+                              </option>
+                              {gameVersions.map((version) => (
+                                <option key={version} value={version}>
+                                  {version} (Pack Format {gameVersionToPackFormat[version]})
+                                </option>
+                              ))}
+                            </select>
+                            {isLoadingVersions && (
+                              <p className="loading-text">🔄 Fetching latest pack format data...</p>
+                            )}
+                          </div>
+
+                          <div className="version-or-divider">
+                            <span>OR</span>
+                          </div>
+
+                          <div className="version-selection-group">
+                            <label htmlFor="pack-version" className="version-label">
+                              Manual Pack Format Version:
+                            </label>
+                            <input
+                              type="number"
+                              id="pack-version"
+                              className={`version-input ${packVersion && !isValidPackVersion(packVersion) ? 'invalid' : ''}`}
+                              value={packVersion}
+                              onChange={handlePackVersionChange}
+                              placeholder={isLoadingVersions ? 'Loading…' : `Enter version (${MIN_PACK_VERSION}-${latestPackVersion})`}
+                              min={MIN_PACK_VERSION}
+                              max={latestPackVersion}
+                              disabled={selectedGameVersion !== '' || isLoadingVersions}
+                            />
+                            {packVersion && !isValidPackVersion(packVersion) && (
+                              <p className="version-error">
+                                Please enter a valid pack format version between {MIN_PACK_VERSION} and {latestPackVersion}
+                              </p>
+                            )}
+                          </div>
+
+                          {selectedGameVersion && (
+                            <div className="selected-version-info">
+                              <p>
+                                <strong>Selected:</strong> Minecraft {selectedGameVersion} → Pack Format {packVersion}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Bulk-mode Range Inputs */}
+                      {isBulkMode && (
+                        <>
+                          <div className="version-selection-group">
+                            <label htmlFor="bulk-start-version" className="version-label">Start Version:</label>
+                            <select
+                              id="bulk-start-version"
+                              className="version-dropdown"
+                              value={bulkStartVersion}
+                              onChange={handleBulkStartChange}
+                              disabled={isLoadingVersions}
+                            >
+                              <option value="">
+                                {isLoadingVersions ? 'Loading versions...' : 'Select start version'}
+                              </option>
+                              {gameVersions.map((version) => (
+                                <option key={version} value={version}>
+                                  {version} (Pack Format {gameVersionToPackFormat[version]})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="version-selection-group">
+                            <label htmlFor="bulk-end-version" className="version-label">End Version:</label>
+                            <select
+                              id="bulk-end-version"
+                              className="version-dropdown"
+                              value={bulkEndVersion}
+                              onChange={handleBulkEndChange}
+                              disabled={isLoadingVersions}
+                            >
+                              <option value="">
+                                {isLoadingVersions ? 'Loading versions...' : 'Select end version'}
+                              </option>
+                              {gameVersions.map((version) => (
+                                <option key={version} value={version}>
+                                  {version} (Pack Format {gameVersionToPackFormat[version]})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {bulkStartVersion && bulkEndVersion && (
+                            <div className="selected-version-info">
+                              <p><strong>Range:</strong> {bulkStartVersion} → {bulkEndVersion}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <button
+                        className={`convert-button ${canConvert() ? 'enabled' : 'disabled'}`}
+                        onClick={canConvert() ? handleConvert : undefined}
+                        disabled={!canConvert()}
+                      >
+                        <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v13m7-7H5" />
+                        </svg>
+                        {isConverting ? 'Converting...' : 'Convert'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+
+            <div
+              className="features-section"
+            >
+              <div className="features-grid">
+                <div className="feature-item">
+                  <div className="feature-icon">🔓</div>
+                  <h3>Open Source</h3>
+                  <p>Fully transparent code available on GitHub. Contribute, inspect, or fork the project.</p>
+                </div>
+                <div className="feature-item">
+                  <div className="feature-icon">📦</div>
+                  <h3>Bulk Conversions</h3>
+                  <p>Convert to multiple Minecraft versions at once and download as a single zip file.</p>
+                </div>
+                <div className="feature-item">
+                  <div className="feature-icon">🏷️</div>
+                  <h3>Smart Naming</h3>
+                  <p>Automatically rename files by detecting and replacing version numbers in filenames.</p>
+                </div>
+                <div className="feature-item">
+                  <div className="feature-icon">🔒</div>
+                  <h3>Client-Side Processing</h3>
+                  <p>Your files never leave your browser. All processing happens locally for complete privacy.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
