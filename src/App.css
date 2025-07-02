@@ -1,4 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  --color-bg: #f5f8fc;
+  --color-surface: #ffffff;
+  --color-primary: #3b82f6; /* Tailwind blue-500 */
+  --color-primary-dark: #2563eb; /* Tailwind blue-600 */
+  --color-text: #1f2937; /* Tailwind gray-800 */
+  --color-text-secondary: #4b5563; /* Tailwind gray-600 */
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.1);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+}
+
+body {
+  background-color: var(--color-bg);
+  font-family: 'Inter', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  color: var(--color-text);
+}
 
 .App {
   text-align: center;
@@ -15,8 +38,9 @@
   }
 }
 
+/* modern gradient header */
 .App-header {
-  background-color: #282c34;
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, #1e3a8a 100%);
   padding: 2rem 0;
   color: white;
   display: flex;
@@ -49,6 +73,25 @@
 .App-title {
   font-size: 3rem;
   margin: 0;
+  color: #f1f5f9; /* light slate */
+  transition: color 0.3s ease, transform 0.3s ease;
+  font-weight: 700;
+}
+
+.App-title:hover {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* tagline */
+.App-tagline {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin: 0 0 1rem 0;
+  color: rgba(255,255,255,0.85);
+  display: block;
+  width: 100%;
+  text-align: center;
 }
 
 .github-button {
@@ -91,23 +134,22 @@
 }
 
 .upload-area {
-  border: 3px dashed #ccc;
-  border-radius: 12px;
-  padding: 3rem 2rem;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  background-color: #f9f9f9;
+  border: none;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-lg);
+  padding: 4rem 2rem;
+  transition: all 0.3s ease, transform 0.3s ease;
 }
 
 .upload-area:hover {
-  border-color: #007bff;
-  background-color: #f0f8ff;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
 }
 
 .upload-area.drag-over {
-  border-color: #007bff;
-  background-color: #e3f2fd;
-  transform: scale(1.02);
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(236,72,153,0.15) 100%);
+  border: 2px dashed var(--color-primary);
 }
 
 .file-input {
@@ -154,9 +196,10 @@
   position: relative;
   width: 100%;
   padding: 2rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
+  border: none;
   text-align: left;
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -179,7 +222,7 @@
 }
 
 .convert-button {
-  background: #007bff;
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 1rem 2.5rem;
@@ -265,29 +308,28 @@
 }
 
 .convert-button.enabled {
-  background: #007bff;
-  box-shadow: 
-    0 0 20px rgba(0, 123, 255, 0.6),
-    0 0 40px rgba(0, 123, 255, 0.4),
-    0 0 80px rgba(0, 123, 255, 0.2);
+  background: var(--color-primary);
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.6),
+    0 0 40px rgba(59, 130, 246, 0.4),
+    0 0 80px rgba(59, 130, 246, 0.2);
   animation: pulse-glow 2s ease-in-out infinite alternate;
 }
 
 .convert-button.enabled:hover {
-  background: #0056b3;
+  background: var(--color-primary-dark);
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 
-    0 0 30px rgba(0, 123, 255, 0.8),
-    0 0 60px rgba(0, 123, 255, 0.6),
-    0 0 120px rgba(0, 123, 255, 0.4);
+  box-shadow:
+    0 0 30px rgba(59, 130, 246, 0.8),
+    0 0 60px rgba(59, 130, 246, 0.6),
+    0 0 120px rgba(59, 130, 246, 0.4);
 }
 
 .convert-button.disabled {
-  background: #6c757d;
+  background: #9ca3af; /* Gray-400 */
   cursor: not-allowed;
-  opacity: 0.5;
-  box-shadow: 0 4px 16px rgba(108, 117, 125, 0.2);
-  animation: none;
+  opacity: 0.6;
+  box-shadow: none;
 }
 
 .convert-button:active.enabled {
@@ -597,10 +639,10 @@ input:checked + .slider:before {
 
 .features-section {
   margin: 0 0 3rem 0;
-  padding: 2rem;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  border: 1px solid #dee2e6;
+  padding: 2.5rem;
+  background: linear-gradient(135deg, var(--color-surface) 0%, rgba(59,130,246,0.05) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0,0,0,0.05);
   position: relative;
   z-index: 1;
 }
@@ -699,4 +741,31 @@ input:checked + .slider:before {
   width: 20px;
   height: 20px;
   filter: invert(1) brightness(2);
+}
+
+/* progress bar */
+.progress-bar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background-color: rgba(0,0,0,0.1);
+  overflow: hidden;
+  border-radius: 3px;
+  margin-top: 0.75rem;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  left: -40%;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  background-color: var(--color-primary);
+  animation: progressBar 1.2s linear infinite;
+}
+
+@keyframes progressBar {
+  0% { left: -40%; }
+  100% { left: 100%; }
 }

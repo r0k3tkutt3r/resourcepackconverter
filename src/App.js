@@ -588,6 +588,7 @@ function App() {
       )}
       <header className="App-header">
         <h1 className="App-title">Resource Pack Converter</h1>
+        <p className="App-tagline">Convert Minecraft Java resource packs across versions effortlessly</p>
         <div className="header-buttons">
           <a 
             href="https://github.com/r0k3tkutt3r/resourcepackconverter" 
@@ -657,12 +658,14 @@ function App() {
                   {getValidationMessage() && (
                     <div className={`validation-message ${isScanning ? 'scanning' : isValidResourcePack ? 'valid' : 'invalid'}`}>
                       {getValidationMessage()}
+                      {isScanning && <div className="progress-bar" />}
                     </div>
                   )}
                   
                   {isConverting && conversionStep && (
                     <div className="validation-message converting">
                       🔄 {conversionStep}
+                      <div className="progress-bar" />
                     </div>
                   )}
                   
