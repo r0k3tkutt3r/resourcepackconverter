@@ -671,3 +671,32 @@ input:checked + .slider:before {
   max-height: 2000px; /* sufficiently large to accommodate content */
   opacity: 1;
 }
+
+/* ---------------- Modrinth button ---------------- */
+.modrinth-button {
+  background-color: #000;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  border: 2px solid #000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modrinth-button:hover {
+  background-color: #111;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modrinth-icon {
+  width: 20px;
+  height: 20px;
+  filter: invert(1) brightness(2);
+}

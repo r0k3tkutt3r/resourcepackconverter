@@ -1,6 +1,7 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import githubMark from './assets/github-mark.svg';
+// Modrinth logo will be fetched from its raw GitHub URL to avoid bundling issues with local assets
 import { Analytics } from "@vercel/analytics/react";
 
 function App() {
@@ -596,6 +597,19 @@ function App() {
           >
             <img src={githubMark} alt="GitHub" className="github-icon" />
             View code on GitHub
+          </a>
+          <a
+            href="https://modrinth.com/user/r0k3tkutt3r"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="modrinth-button"
+          >
+            <img
+              src="https://raw.githubusercontent.com/modrinth/knossos/master/assets/images/logo.svg"
+              alt="Modrinth"
+              className="modrinth-icon"
+            />
+            View my projects on Modrinth
           </a>
           <KoFiButton />
         </div>
